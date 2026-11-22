@@ -396,14 +396,34 @@ def md_to_html(md, title):
             '<meta name="mobile-web-app-capable" content="yes">'
             '<meta name="apple-mobile-web-app-title" content="台股日報">'
             '<meta name="theme-color" content="#111111">'
+            '<meta http-equiv="Cache-Control" content="no-cache">'
             f"<title>{h.escape(title)}</title><style>{HTML_STYLE}</style></head>"
-            f"<body>{''.join(out)}</body></html>")
+            f"<body>{REFRESH_BAR}{''.join(out)}{REFRESH_JS}</body></html>")
+
+
+# 主畫面 App 模式沒有重新整理按鈕：加一顆按鈕，並在切回 App 時自動抓最新版
+REFRESH_BAR = ('<div style="text-align:right;margin-bottom:-8px">'
+               '<button onclick="refresh()" style="background:#222;color:#9cc3ff;'
+               'border:1px solid #444;border-radius:8px;padding:6px 14px;font-size:15px">'
+               '🔄 重新整理</button></div>')
+REFRESH_JS = """<script>
+const loadedAt = Date.now();
+function refresh(){ location.replace(location.pathname + '?t=' + Date.now()); }
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible' && Date.now() - loadedAt > 5*60*1000) refresh();
+});
+</script>"""
 
 
 def write_index(latest_md, latest_date):
     """index.html = 最新一天的報告 + 歷史報告連結（給 GitHub Pages / 手機主畫面用）"""
     files = sorted((f for f in os.listdir(REPORT_DIR)
                     if f.endswith(".html") and f != "index.html"), reverse=True)
+    # 首頁顯示「日期最新」的報告，而不是「最後一次執行」的
+    newest_md = os.path.join(REPORT_DIR, files[0][:-5] + ".md") if files else None
+    if newest_md and os.path.exists(newest_md):
+        with open(newest_md, encoding="utf-8") as f:
+            latest_md = f.read()
     links = ["", "## 歷史報告", ""]
     links += [f"[{f[:-5]}]({f})" for f in files[:60]]
     with open(os.path.join(REPORT_DIR, "index.html"), "w", encoding="utf-8") as f:
