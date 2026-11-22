@@ -408,6 +408,8 @@ def write_index(latest_md, latest_date):
     links += [f"[{f[:-5]}]({f})" for f in files[:60]]
     with open(os.path.join(REPORT_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(md_to_html(latest_md + "\n" + "\n".join(links), "台股日報"))
+    # 告訴 GitHub Pages 不要用 Jekyll 處理（否則 .md 會被轉成 .html 跟我們的檔案衝突）
+    open(os.path.join(REPORT_DIR, ".nojekyll"), "w").close()
 
 
 # ---------------------------------------------------------------- LINE 推播
