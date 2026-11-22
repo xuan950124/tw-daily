@@ -329,11 +329,14 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .pos{color:#ff5b5b}.neg{color:#2ecc71}
 blockquote{color:#999;margin:4px 0;font-size:14px}
 a{color:#9cc3ff}
+#history{display:flex;flex-wrap:wrap;gap:8px}
+#history a{padding:6px 12px;border:1px solid #333;border-radius:8px;text-decoration:none}
+#history a.on{background:#9cc3ff;color:#111}
 @media(max-width:600px){body{margin:12px auto;font-size:15px}th,td{padding:4px 6px}}
 """
 
 
-def md_to_html(md, title):
+def md_to_html(md, title, extra_html=""):
     """把本程式產生的簡單 Markdown 轉成 HTML（台股慣例：漲紅跌綠）"""
     import html as h
     import re
@@ -398,8 +401,37 @@ def md_to_html(md, title):
             '<meta name="theme-color" content="#111111">'
             '<meta http-equiv="Cache-Control" content="no-cache">'
             f"<title>{h.escape(title)}</title><style>{HTML_STYLE}</style></head>"
-            f"<body>{REFRESH_BAR}{''.join(out)}{REFRESH_JS}</body></html>")
+            f'<body>{REFRESH_BAR}<div id="report">{"".join(out)}</div>'
+            f"{extra_html}{REFRESH_JS}</body></html>")
 
+
+HISTORY_JS = """<script>
+async function loadReport(d){
+  const box = document.getElementById('report');
+  box.style.opacity = 0.4;
+  try {
+    const r = await fetch(d + '.html?t=' + Date.now());
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const src = doc.getElementById('report') || doc.body;
+    // 舊版報告沒有 #report，把重新整理按鈕和 script 拿掉
+    src.querySelectorAll('script').forEach(e => e.remove());
+    src.querySelectorAll('button').forEach(e => (e.closest('div') || e).remove());
+    box.innerHTML = src.innerHTML;
+    document.querySelectorAll('#history a').forEach(a =>
+      a.classList.toggle('on', a.textContent === d));
+    history.replaceState(null, '', '#' + d);
+    window.scrollTo(0, 0);
+  } catch (e) { alert('載入失敗：' + e); }
+  box.style.opacity = 1;
+}
+// 標示目前顯示的日期；網址帶 #日期 就直接載入那天
+(function(){
+  const want = location.hash.slice(1);
+  const first = document.querySelector('#history a');
+  if (want && /^\\d{4}-\\d{2}-\\d{2}$/.test(want)) loadReport(want);
+  else if (first) first.classList.add('on');
+})();
+</script>"""
 
 # 主畫面 App 模式沒有重新整理按鈕：加一顆按鈕，並在切回 App 時自動抓最新版
 REFRESH_BAR = ('<div style="text-align:right;margin-bottom:-8px">'
@@ -424,10 +456,13 @@ def write_index(latest_md, latest_date):
     if newest_md and os.path.exists(newest_md):
         with open(newest_md, encoding="utf-8") as f:
             latest_md = f.read()
-    links = ["", "## 歷史報告", ""]
-    links += [f"[{f[:-5]}]({f})" for f in files[:60]]
+    # 歷史清單：點了在同一頁載入（不換頁，iPhone 主畫面 App 才不會跳出另一個瀏覽器）
+    items = "".join(
+        f'<a href="#{f[:-5]}" onclick="loadReport(\'{f[:-5]}\');return false;">{f[:-5]}</a>'
+        for f in files[:60])
+    history_html = f'<h2>歷史報告</h2><div id="history">{items}</div>' + HISTORY_JS
     with open(os.path.join(REPORT_DIR, "index.html"), "w", encoding="utf-8") as f:
-        f.write(md_to_html(latest_md + "\n" + "\n".join(links), "台股日報"))
+        f.write(md_to_html(latest_md, "台股日報", history_html))
     # 告訴 GitHub Pages 不要用 Jekyll 處理（否則 .md 會被轉成 .html 跟我們的檔案衝突）
     open(os.path.join(REPORT_DIR, ".nojekyll"), "w").close()
 
