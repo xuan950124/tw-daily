@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 9 * * 1-5"   # UTC 09:00 = 台灣平日 17:00（GitHub 排程可能晚幾分鐘到半小時）
   workflow_dispatch:          # 可以在 Actions 頁面手動按「Run workflow」測試
+    inputs:
+      date:
+        description: "測試用日期 YYYYMMDD（留空 = 今天）"
+        required: false
 
 permissions:
   contents: write
@@ -21,8 +25,14 @@ jobs:
       - run: pip install requests pandas yfinance
 
       - name: 產生日報並推播
-        run: python tw_market_daily.py --today-only
+        run: |
+          if [ -n "$TEST_DATE" ]; then
+            python tw_market_daily.py --date "$TEST_DATE"
+          else
+            python tw_market_daily.py --today-only
+          fi
         env:
+          TEST_DATE: ${{ inputs.date }}
           REPORT_DIR: docs
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
