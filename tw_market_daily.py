@@ -571,6 +571,10 @@ def main():
     date_str = args.date
     if args.today_only:
         date_str = datetime.now(TW_TZ).strftime("%Y%m%d")
+        done = os.path.join(REPORT_DIR, f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}.md")
+        if os.path.exists(done):
+            print(f"{date_str} 今天已經產生過報告，跳過（避免重複推播）。")
+            return
         try:
             if not fetch_institutional_amount(date_str):
                 print(f"{date_str} 沒有資料（休市或尚未公布），結束。")
