@@ -2,7 +2,8 @@ name: 台股日報
 
 on:
   schedule:
-    - cron: "0 9 * * 1-5"   # UTC 09:00 = 台灣平日 17:00（GitHub 排程可能晚幾分鐘到半小時）
+    # 主力由 cron-job.org 在台灣 17:15 觸發；這裡是備援（台灣 18:37），今天跑過就會自動跳過
+    - cron: "37 10 * * 1-5"
   workflow_dispatch:          # 可以在 Actions 頁面手動按「Run workflow」測試
     inputs:
       date:
